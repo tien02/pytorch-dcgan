@@ -1,12 +1,13 @@
+from email import generator
 import torch
 import torchvision
 import torch.nn as nn
 import torch.optim as optim
-from model import weights_init
+from .model import weights_init
 from torch.utils.tensorboard import SummaryWriter
 
 class Trainer():
-    def __init__(self, Generator, Discriminator, learning_rate, noise_dim):
+    def __init__(self, Generator, Discriminator, learning_rate, noise_dim, path=None):
         # Device, noise_dim
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.noise_dim = noise_dim
@@ -30,6 +31,9 @@ class Trainer():
         self.fixed_noise = torch.randn(32, noise_dim, 1, 1).to(self.device)
         self.writer_real = SummaryWriter(f"logs/real")
         self.writer_fake = SummaryWriter(f"logs/fake")
+
+        # Save path
+        self.path = path
     
     def train(self,dataloader, epochs):
         step = 0
@@ -51,12 +55,12 @@ class Trainer():
                 # Train Discriminator
                 disc_real = self.discriminator(real).reshape(-1)
                 loss_disc_real = self.criterion(disc_real, torch.ones_like(disc_real))
-                disc_fake = self.discriminator(fake.detach().reshape(-1))
+                disc_fake = self.discriminator(fake.detach()).reshape(-1)
                 loss_disc_fake = self.criterion(disc_fake, torch.zeros_like(disc_fake))
                 discriminator_loss = 0.5 * (loss_disc_real + loss_disc_fake)
                 self.discriminator.zero_grad()
-                discriminator_loss.backward()
-                self.dis_opt.step()
+                discriminator_loss.backward(retain_graph=True)
+                self.disc_opt.step()
 
                 # Train Generator
                 output = self.discriminator(fake).reshape(-1)
@@ -65,9 +69,10 @@ class Trainer():
                 generator_loss.backward()
                 self.gen_opt.step()
 
+
                 # Print loss occasionally 
                 if batch_idx % 100 == 0:
-                    print(f"\tBatch [{batch_idx}/{len(dataloader)}]: Discriminator Loss {discriminator_loss} - Generator Loss {generator_loss}")
+                    print(f"Batch [{batch_idx}/{len(dataloader)}]: Loss D {discriminator_loss} - Loss G {generator_loss}")
                 
                 with torch.no_grad():
                     fake = self.generator(self.fixed_noise)
@@ -78,3 +83,6 @@ class Trainer():
                     self.writer_fake.add_image("Fake", img_grid_fake, global_step=step)
 
             step += 1
+        
+        if self.path is not None:
+            torch.save(generator.state_dict(), self.path)
