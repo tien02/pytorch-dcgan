@@ -13,14 +13,15 @@ from src.trainer import Trainer
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument("--datapath", type=str, default=None, help="Path to dataset, default is MNIST dataset")
+    parser.add_argument("--checkpoint", type=str, default=None, help="Path to checkpoint")
     opt = parser.parse_args()
     return opt
 
-def run(datapath=None):
+def run(datapath=None, checkpoint=None):
     # transform
     trans = transforms.Compose(
     [
-        transforms.Resize(config.IMAGE_SIZE),
+        transforms.Resize((config.IMAGE_SIZE, config.IMAGE_SIZE)),
         transforms.ToTensor(),
         transforms.Normalize(
             [0.5 for _ in range(config.CHANNELS_IMG)], [0.5 for _ in range(config.CHANNELS_IMG)]
@@ -47,7 +48,7 @@ def run(datapath=None):
     trainer = Trainer(gen, disc, config.LEARNING_RATE, config.NOISE_DIM)
 
     # Train
-    trainer.train(dataloader, config.NUM_EPOCHS)
+    trainer.train(dataloader, config.NUM_EPOCHS, checkpoint)
 
 def main(opt):
     run(**vars(opt))

@@ -7,12 +7,12 @@ class Discriminator(nn.Module):
     def __init__(self, img_channels, feature_d):
         super(Discriminator, self).__init__()
         self.cnn = nn.Sequential(
-            nn.Conv2d(img_channels, feature_d, 4, 2, 1, bias=False),
-            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(img_channels, feature_d, 4, 2, 1),
+            nn.LeakyReLU(0.2),
             self._block(feature_d, feature_d * 2),
-            self._block(feature_d  *2, feature_d * 4),
+            self._block(feature_d * 2, feature_d * 4),
             self._block(feature_d * 4, feature_d * 8),
-            nn.Conv2d(feature_d * 8, 1, 4, 1, 0),
+            nn.Conv2d(feature_d * 8, 1, 4, 2, 0),
             nn.Sigmoid()
         )
     
@@ -45,7 +45,7 @@ class Generator(nn.Module):
         return nn.Sequential(
             nn.ConvTranspose2d(in_channels, out_channels, kernel_size, stride, padding, bias=False),
             nn.BatchNorm2d(out_channels),
-            nn.ReLU(True) 
+            nn.ReLU() 
         )
 
 def initialize_weights(model):
@@ -54,6 +54,7 @@ def initialize_weights(model):
       nn.init.normal_(m.weight.data, 0.0, 0.02)
 
 def test():
+    print("Test model.py.....", end=".")
     batch, channels, imgH, imgW = 4, 3, 64, 64
     noise_dim = 100
     img = torch.rand(batch, channels, imgH, imgW)
@@ -62,6 +63,7 @@ def test():
     gen = Generator(noise_dim, channels, 64)
     assert disc(img).size() == (batch, 1, 1, 1), "ERROR: Discriminator Fail!" 
     assert gen(noise).size() == (batch, channels, imgH, imgW), "ERROR: Generator Fail!"
+    print("Success!")
 
 if __name__ == '__main__':
     test()

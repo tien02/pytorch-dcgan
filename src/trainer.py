@@ -31,6 +31,7 @@ class Trainer():
     
     def train(self,dataloader, epochs, checkpoint=None):
         step = 0
+
         self.generator.train()
         self.discriminator.train()
 
@@ -52,7 +53,7 @@ class Trainer():
 
         for epoch in range(start, end):
             print('-' * 59)
-            print(f"Epoch [{epoch}/{epochs}]")
+            print(f"Epoch [{start}/{end}]")
             print()
             for batch_idx, (real, _) in enumerate(dataloader):
                 batch_size = real.size(0)
@@ -84,21 +85,20 @@ class Trainer():
                 if batch_idx % 100 == 0:
                     print("Batch [{}/{}]: Loss D {:.2f} - Loss G {:.2f}".format(batch_idx, len(dataloader), discriminator_loss, generator_loss))
                 
-                with torch.no_grad():
-                    fake = self.generator(self.fixed_noise)
-                    img_grid_real = torchvision.utils.make_grid(real[:32], normalize=True)
-                    img_grid_fake = torchvision.utils.make_grid(fake[:32], normalize=True)
+                    with torch.no_grad():
+                        fake = self.generator(self.fixed_noise)
+                        img_grid_real = torchvision.utils.make_grid(real[:32], normalize=True)
+                        img_grid_fake = torchvision.utils.make_grid(fake[:32], normalize=True)
 
-                    self.writer_real.add_image("Real", img_grid_real, global_step=step)
-                    self.writer_fake.add_image("Fake", img_grid_fake, global_step=step)
+                        self.writer_real.add_image("Real", img_grid_real, global_step=step)
+                        self.writer_fake.add_image("Fake", img_grid_fake, global_step=step)
 
-                step += 1
-                # Checkpoint
-            if epoch == epochs:
-                torch.save({
-                    'epoch': epoch,
-                    'gen_state': self.generator.state_dict(),
-                    'disc_state': self.discriminator.state_dict(),
-                    'gen_opt': self.gen_opt.state_dict(),
-                    'disc_opt': self.disc_opt.state_dict()
-                }, 'weight/{}.pt'.format(torch.randint(0, 10, (1,1)).item()))
+                    step += 1
+        # Checkpoint
+        torch.save({
+            'epoch': epoch,
+            'gen_state': self.generator.state_dict(),
+            'disc_state': self.discriminator.state_dict(),
+            'gen_opt': self.gen_opt.state_dict(),
+            'disc_opt': self.disc_opt.state_dict()
+        }, 'weight/{}.pt'.format(torch.randint(0, 10, (1,1)).item()))
