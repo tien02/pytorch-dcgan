@@ -53,7 +53,7 @@ class Trainer():
 
         for epoch in range(start, end):
             print('-' * 59)
-            print(f"Epoch [{start}/{end}]")
+            print(f"Epoch [{epoch}/{end}]")
             print()
             for batch_idx, (real, _) in enumerate(dataloader):
                 batch_size = real.size(0)
