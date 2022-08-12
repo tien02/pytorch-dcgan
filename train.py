@@ -44,7 +44,7 @@ def run(datapath=None):
     disc = Discriminator(config.CHANNELS_IMG, config.FEATURES_DISC)
 
     # Declare Trainer
-    trainer = Trainer(gen, disc, config.LEARNING_RATE, config.NOISE_DIM, "./weight")
+    trainer = Trainer(gen, disc, config.LEARNING_RATE, config.NOISE_DIM)
 
     # Train
     trainer.train(dataloader, config.NUM_EPOCHS)

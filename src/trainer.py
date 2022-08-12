@@ -1,24 +1,21 @@
-from email import generator
 import torch
 import torchvision
 import torch.nn as nn
 import torch.optim as optim
-from .model import weights_init
+from .model import initialize_weights
 from torch.utils.tensorboard import SummaryWriter
 
 class Trainer():
-    def __init__(self, Generator, Discriminator, learning_rate, noise_dim, path=None):
+    def __init__(self, Generator, Discriminator, learning_rate, noise_dim):
         # Device, noise_dim
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.noise_dim = noise_dim
 
         # Init Generator
         self.generator = Generator.to(self.device)
-        weights_init(self.generator)
 
         # Init Discriminator
         self.discriminator = Discriminator.to(self.device)
-        weights_init(self.discriminator)
 
         # Optimizer
         self.gen_opt = optim.Adam(self.generator.parameters(), lr=learning_rate, betas=(0.5, 0.999))
@@ -31,25 +28,38 @@ class Trainer():
         self.fixed_noise = torch.randn(32, noise_dim, 1, 1).to(self.device)
         self.writer_real = SummaryWriter(f"logs/real")
         self.writer_fake = SummaryWriter(f"logs/fake")
-
-        # Save path
-        self.path = path
     
-    def train(self,dataloader, epochs):
+    def train(self,dataloader, epochs, checkpoint=None):
         step = 0
         self.generator.train()
         self.discriminator.train()
 
-        for epoch in range(1, epochs + 1):
+        if checkpoint is None:
+            start = 1
+            end = epochs + 1
+            initialize_weights(self.generator)
+            initialize_weights(self.discriminator)
+        else:
+            checkpoint = torch.load(checkpoint, map_location=self.device)
+            start = checkpoint['epoch']
+            end = checkpoint['epoch'] + epochs
+
+            self.generator.load_state_dict(checkpoint['gen_state'])
+            self.discriminator.load_state_dict(checkpoint['disc_state'])
+
+            self.gen_opt.load_state_dict(checkpoint['gen_opt'])
+            self.disc_opt.load_state_dict(checkpoint['disc_opt'])
+
+        for epoch in range(start, end):
             print('-' * 59)
             print(f"Epoch [{epoch}/{epochs}]")
-            print('-' * 59)
+            print()
             for batch_idx, (real, _) in enumerate(dataloader):
                 batch_size = real.size(0)
 
                 # Inference
                 real = real.to(self.device)
-                noise = torch.rand(batch_size, self.noise_dim, 1 ,1)
+                noise = torch.rand(batch_size, self.noise_dim, 1 ,1).to(self.device)
                 fake = self.generator(noise)
 
                 # Train Discriminator
@@ -59,7 +69,7 @@ class Trainer():
                 loss_disc_fake = self.criterion(disc_fake, torch.zeros_like(disc_fake))
                 discriminator_loss = 0.5 * (loss_disc_real + loss_disc_fake)
                 self.discriminator.zero_grad()
-                discriminator_loss.backward(retain_graph=True)
+                discriminator_loss.backward()
                 self.disc_opt.step()
 
                 # Train Generator
@@ -72,7 +82,7 @@ class Trainer():
 
                 # Print loss occasionally 
                 if batch_idx % 100 == 0:
-                    print(f"Batch [{batch_idx}/{len(dataloader)}]: Loss D {discriminator_loss} - Loss G {generator_loss}")
+                    print("Batch [{}/{}]: Loss D {:.2f} - Loss G {:.2f}".format(batch_idx, len(dataloader), discriminator_loss, generator_loss))
                 
                 with torch.no_grad():
                     fake = self.generator(self.fixed_noise)
@@ -82,7 +92,13 @@ class Trainer():
                     self.writer_real.add_image("Real", img_grid_real, global_step=step)
                     self.writer_fake.add_image("Fake", img_grid_fake, global_step=step)
 
-            step += 1
-        
-        if self.path is not None:
-            torch.save(generator.state_dict(), self.path)
+                step += 1
+                # Checkpoint
+            if epoch == epochs:
+                torch.save({
+                    'epoch': epoch,
+                    'gen_state': self.generator.state_dict(),
+                    'disc_state': self.discriminator.state_dict(),
+                    'gen_opt': self.gen_opt.state_dict(),
+                    'disc_opt': self.disc_opt.state_dict()
+                }, 'weight/{}.pt'.format(torch.randint(0, 10, (1,1)).item()))
