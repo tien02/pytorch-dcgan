@@ -147,7 +147,7 @@ def run(datapath=None, checkpoint=None, save=False, tensorboard=True, make_gif=F
     # Make GIF
     if make_gif:
         gif_one = pil_list[0]
-        gif_one.save("gan.gif", format="GIF", append_images=pil_list,save_all=True, duration=100, loop=0)
+        gif_one.save("gan.gif", format="GIF", append_images=pil_list,save_all=True, duration=150, loop=0)
         print("\nGIF is saved!")
 
 def main(opt):
