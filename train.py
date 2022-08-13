@@ -1,6 +1,5 @@
 import argparse 
-from . import config
-
+import config
 import os
 import torch
 import torchvision
@@ -11,18 +10,19 @@ from torchvision import datasets
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+from model import Generator, Discriminator, initialize_weights
 
-from src.model import Generator, Discriminator, initialize_weights
-
-def parse_opt():
+def parse_opt():    
     parser = argparse.ArgumentParser()
-    parser.add_argument("--datapath", type=str, default=None, help="Path to dataset, default is MNIST dataset")
-    parser.add_argument("--checkpoint", type=str, default=None, help="Path to checkpoint")
-    parser.add_argument("--save", action=argparse.BooleanOptionalAction, help="Save checkpoint")
+    parser.add_argument("--datapath", type=str, default=None, metavar='', help="Path to dataset, default is MNIST dataset")
+    parser.add_argument("--checkpoint", type=str, default=None, metavar='', help="Load to checkpoint from path")
+    parser.add_argument("--save", action='store_true', help="Save checkpoint")
+    parser.add_argument("--tensorboard", action='store_true', help="Tensorboard display")
+    parser.add_argument("--make_gif", action='store_true', help="Make .gif image from noise while training")
     opt = parser.parse_args()
     return opt
 
-def run(datapath=None, checkpoint=None, save=False):
+def run(datapath=None, checkpoint=None, save=False, tensorboard=True, make_gif=False):
     # device 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
@@ -51,7 +51,7 @@ def run(datapath=None, checkpoint=None, save=False):
     disc = Discriminator(config.CHANNELS_IMG, config.FEATURES_DISC).to(device)
 
     opt_gen = optim.Adam(gen.parameters(), lr=config.LEARNING_RATE, betas=(0.5,0.999))
-    opt_disc = optim.Adam(disc.parameters(), lr=config.LEANRING_RATE, betas=(0.5,0.999))
+    opt_disc = optim.Adam(disc.parameters(), lr=config.LEARNING_RATE, betas=(0.5,0.999))
 
     if checkpoint is None:
         start = 1
@@ -72,10 +72,14 @@ def run(datapath=None, checkpoint=None, save=False):
     
     criterion = nn.BCELoss()
 
-    fixed_noise = torch.randn(32, config.NOISE_DIM,1,1).to(device)
-    writer_real = SummaryWriter(f"logs/real")
-    writer_fake = SummaryWriter(f"logs/fake")
-    step = 0
+    if tensorboard:
+        fixed_noise = torch.randn(32, config.NOISE_DIM,1,1).to(device)
+        writer_real = SummaryWriter(f"logs/real")
+        writer_fake = SummaryWriter(f"logs/fake")
+        step = 0
+
+    if make_gif:
+        pil_list = []
 
     gen.train()
     disc.train()
@@ -109,16 +113,25 @@ def run(datapath=None, checkpoint=None, save=False):
             ### Print
             if batch_idx % 100 == 0:
                 print("Batch [{}/{}]: Loss D {:.2f} - Loss G {:.2f}".format(batch_idx, len(dataloader), loss_disc, loss_gen))
+                if make_gif:
+                    fake = gen(fixed_noise)
+                    grid = torchvision.utils.make_grid(fake[:32], normalize = True)
+                    pil_img = transforms.ToPILImage()(grid.to('cpu'))
+                    pil_list.append(pil_img)
+                    # if os.path.exists("make_gif_images"):
+                    #     os.mkdir("make_gif_images")
+                    # torchvision.utils.save_image(grid, os.path.join("make_gif_images", f"img_batch_{batch_idx}_epoch{epoch}.png"))
             
-            with torch.no_grad():
-                fake = gen(fixed_noise)
+            if tensorboard:
+                with torch.no_grad():
+                    fake = gen(fixed_noise)
 
-                img_grid_real = torchvision.utils.make_grid(real[:32], normalize = True)
-                img_grid_fake = torchvision.utils.make_grid(fake[:32], normalize = True)
+                    img_grid_real = torchvision.utils.make_grid(real[:32], normalize = True)
+                    img_grid_fake = torchvision.utils.make_grid(fake[:32], normalize = True)
 
-                writer_real.add_image("Real", img_grid_real, global_step=step)
-                writer_fake.add_image("Fake", img_grid_fake, global_step=step)
-                step += 1
+                    writer_real.add_image("Real", img_grid_real, global_step=step)
+                    writer_fake.add_image("Fake", img_grid_fake, global_step=step)
+                    step += 1
     # Checkpoint
     if save:
         if not os.path.exists("weight"):
@@ -130,6 +143,12 @@ def run(datapath=None, checkpoint=None, save=False):
             'gen_opt': opt_gen.state_dict(),
             'disc_opt': opt_disc.state_dict()
         }, 'weight/{}.pt'.format(torch.randint(0, 10, (1,1)).item()))
+    
+    # Make GIF
+    if make_gif:
+        gif_one = pil_list[0]
+        gif_one.save("gan.gif", format="GIF", append_images=pil_list,save_all=True, duration=100, loop=0)
+        print("\nGIF is saved!")
 
 def main(opt):
     run(**vars(opt))
