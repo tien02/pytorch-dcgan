@@ -23,7 +23,7 @@ class Discriminator(nn.Module):
         return nn.Sequential(
             nn.Conv2d(in_channels, out_channels, 4, 2, 1, bias=False),
             nn.BatchNorm2d(out_channels),
-            nn.LeakyReLU(0.2, inplace=True)
+            nn.LeakyReLU(0.2)
         )
 
 class Generator(nn.Module):
