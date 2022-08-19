@@ -45,6 +45,8 @@ def run(datapath=None, checkpoint=None, save=False, tensorboard=True, make_gif=F
 
     # dataloader
     dataloader = DataLoader(dataset=dataset, batch_size=config.BATCH_SIZE, shuffle=True)
+    # check valid config 
+    assert dataloader[0].size(1) == config.CHANNELS_IMG, "Number of image's channel should match CHANNELS_IMG in config.py"
 
     # Declare Generator & Discriminator
     gen = Generator(config.NOISE_DIM, config.CHANNELS_IMG, config.FEATURES_GEN).to(device)

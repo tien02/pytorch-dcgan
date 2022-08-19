@@ -25,11 +25,11 @@ python train.py [-h]
                 [--tensorboard]
                 [--make_gif]
 ```
-Use `--save` to save checpoint after training.
+Use `--save` to save checkpoint after training.
 
 Use `--tensorboard` to activate tensorboard in order to see the training process.
 
-Use `--make_gif` to make create .gif about generation process after training.
+Use `--make_gif` to make create .gif image file about generation process after training.
 
 ## Result
 
